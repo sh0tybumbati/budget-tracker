@@ -37,10 +37,6 @@ COPY --from=builder /app/dist ./dist
 # Copy server file
 COPY server.js ./
 
-# Create directory for SQLite database
-RUN mkdir -p /app/data
-VOLUME ["/app/data"]
-
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S budgetapp -u 1001
