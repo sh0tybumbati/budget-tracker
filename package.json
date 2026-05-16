@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "serve": "vite preview --host",
     "server": "node server.js",
-    "start": "npm run server & npm run dev -- --host"
+    "start": "NODE_ENV=production node server.js"
   },
   "keywords": [],
   "author": "",

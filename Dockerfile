@@ -39,6 +39,7 @@ COPY server.js ./
 
 # Create directory for SQLite database
 RUN mkdir -p /app/data
+VOLUME ["/app/data"]
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
@@ -49,7 +50,7 @@ RUN chown -R budgetapp:nodejs /app
 USER budgetapp
 
 # Expose port
-EXPOSE 3001
+EXPOSE $PORT
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
@@ -20,7 +20,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Initialize SQLite database
-const dbPath = './budget.db';
+const dbPath = process.env.NODE_ENV === 'production' ? '/app/data/budget.db' : './budget.db';
 const db = new sqlite3.Database(dbPath);
 
 // Create tables if they don't exist
@@ -119,7 +119,7 @@ if (process.env.NODE_ENV === 'production') {
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Budget Tracker API running on http://0.0.0.0:${PORT}`);
-  console.log(`Network access: http://192.168.18.11:${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
 // Graceful shutdown
