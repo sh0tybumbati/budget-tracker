@@ -11,6 +11,12 @@ import { SavingsTracker } from './components/SavingsTracker';
 import { SavingsGoal, INITIAL_SAVINGS_GOALS, calculateTotalSavings } from './lib/savings';
 import { CURRENCIES, formatMoney, DEFAULT_CURRENCY_CODE } from './lib/currency';
 import { exportEntriesToCSV } from './lib/csvExport';
+import { BudgetLimitsTracker } from './components/BudgetLimitsTracker';
+import { CategoryLimit, DEFAULT_BUDGET_LIMITS } from './lib/budgetLimits';
+import { HistoricalTrendsChart } from './components/HistoricalTrendsChart';
+import { DebtTracker } from './components/DebtTracker';
+import { DebtItem, INITIAL_DEBTS } from './lib/debts';
+import { FinancialCalendar } from './components/FinancialCalendar';
 
 // Category definitions with colors
 const INCOME_CATEGORIES = {
@@ -74,6 +80,8 @@ const BudgetTracker = () => {
   const [currencyCode, setCurrencyCode] = useState('PHP');
   const [customCategories, setCustomCategories] = useState({ income: {}, expense: {} });
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(INITIAL_SAVINGS_GOALS);
+  const [budgetLimits, setBudgetLimits] = useState<CategoryLimit[]>(DEFAULT_BUDGET_LIMITS);
+  const [debtItems, setDebtItems] = useState<DebtItem[]>(INITIAL_DEBTS);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
   // Initialize Supabase Auth Session listener
@@ -160,6 +168,12 @@ const BudgetTracker = () => {
           }
           if (loadedData.savingsGoals && Array.isArray(loadedData.savingsGoals)) {
             setSavingsGoals(loadedData.savingsGoals);
+          }
+          if (loadedData.budgetLimits && Array.isArray(loadedData.budgetLimits)) {
+            setBudgetLimits(loadedData.budgetLimits);
+          }
+          if (loadedData.debtItems && Array.isArray(loadedData.debtItems)) {
+            setDebtItems(loadedData.debtItems);
           }
         }
       } catch (error) {
@@ -878,7 +892,9 @@ const BudgetTracker = () => {
     entriesToSave = entries,
     periodTypeToSave = periodType,
     checkedEntriesToSave = timelineCheckedEntries,
-    goalsToSave = savingsGoals
+    goalsToSave = savingsGoals,
+    limitsToSave = budgetLimits,
+    debtsToSave = debtItems
   ) => {
     const dataToSave = {
       entries: entriesToSave,
@@ -886,7 +902,9 @@ const BudgetTracker = () => {
       timelineCheckedEntries: checkedEntriesToSave,
       currencyCode: currencyCode,
       customCategories: customCategories,
-      savingsGoals: goalsToSave
+      savingsGoals: goalsToSave,
+      budgetLimits: limitsToSave,
+      debtItems: debtsToSave,
     };
     
     // Always backup to localStorage
@@ -1258,6 +1276,24 @@ const BudgetTracker = () => {
                 income: getAvailableCategories('income'),
                 expense: getAvailableCategories('expense'),
               }}
+            />
+
+            <HistoricalTrendsChart
+              entries={entries}
+              currencyCode={currencyCode}
+              isDarkMode={isDarkMode}
+            />
+
+            <BudgetLimitsTracker
+              limits={budgetLimits}
+              entries={entries}
+              onUpdateLimits={(updated) => {
+                setBudgetLimits(updated);
+                autoSave(entries, periodType, timelineCheckedEntries, savingsGoals, updated);
+              }}
+              currencyCode={currencyCode}
+              isDarkMode={isDarkMode}
+              getCategoryInfo={getCategoryInfo}
             />
 
             {/* Savings Goals Preview */}
@@ -3029,7 +3065,7 @@ const BudgetTracker = () => {
     </div>
   )}
 
-        {/* TAB 3: SAVINGS GOALS */}
+        {/* TAB 3: SAVINGS & WEALTH MANAGEMENT */}
         {activeTab === 'savings' && (
           <div className="space-y-6 animate-fade-in">
             <SavingsTracker
@@ -3038,6 +3074,22 @@ const BudgetTracker = () => {
                 setSavingsGoals(updated);
                 autoSave(entries, periodType, timelineCheckedEntries, updated);
               }}
+              currencyCode={currencyCode}
+              isDarkMode={isDarkMode}
+            />
+
+            <DebtTracker
+              debts={debtItems}
+              onUpdateDebts={(updated) => {
+                setDebtItems(updated);
+                autoSave(entries, periodType, timelineCheckedEntries, savingsGoals, budgetLimits, updated);
+              }}
+              currencyCode={currencyCode}
+              isDarkMode={isDarkMode}
+            />
+
+            <FinancialCalendar
+              entries={entries}
               currencyCode={currencyCode}
               isDarkMode={isDarkMode}
             />
