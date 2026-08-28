@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PiggyBank, PlusCircle, TrendingUp, CheckCircle, Target, ArrowUpRight, ArrowDownRight, Edit2, Trash2 } from 'lucide-react';
-import { SavingsGoal } from '../lib/savings';
+import { SavingsGoal, INITIAL_SAVINGS_GOALS } from '../lib/savings';
 import { formatMoney } from '../lib/currency';
 
 interface SavingsTrackerProps {
@@ -11,7 +11,7 @@ interface SavingsTrackerProps {
 }
 
 export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
-  savingsGoals,
+  savingsGoals = INITIAL_SAVINGS_GOALS,
   onUpdateGoals,
   currencyCode,
   isDarkMode,
@@ -36,8 +36,10 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
   const [depositAmount, setDepositAmount] = useState('');
   const [depositType, setDepositType] = useState<'deposit' | 'withdraw'>('deposit');
 
-  const totalSavings = savingsGoals.reduce((sum, g) => sum + (parseFloat(g.currentAmount as any) || 0), 0);
-  const totalTarget = savingsGoals.reduce((sum, g) => sum + (parseFloat(g.targetAmount as any) || 0), 0);
+  const goalsList = Array.isArray(savingsGoals) && savingsGoals.length > 0 ? savingsGoals : INITIAL_SAVINGS_GOALS;
+
+  const totalSavings = goalsList.reduce((sum, g) => sum + (parseFloat(g.currentAmount as any) || 0), 0);
+  const totalTarget = goalsList.reduce((sum, g) => sum + (parseFloat(g.targetAmount as any) || 0), 0);
   const overallPercentage = totalTarget > 0 ? (totalSavings / totalTarget) * 100 : 0;
 
   const handleCreateGoal = (e: React.FormEvent) => {
@@ -53,7 +55,7 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
       createdAt: new Date().toISOString(),
     };
 
-    onUpdateGoals([...savingsGoals, newGoal]);
+    onUpdateGoals([...goalsList, newGoal]);
     setNewGoalName('');
     setNewGoalTarget('');
     setNewGoalInitial('');
@@ -64,7 +66,7 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
     e.preventDefault();
     if (!editModalGoal || !editGoalName.trim() || !editGoalTarget) return;
 
-    const updated = savingsGoals.map((g) => {
+    const updated = goalsList.map((g) => {
       if (g.id === editModalGoal.id) {
         return {
           ...g,
@@ -88,7 +90,7 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
     const amt = parseFloat(depositAmount) || 0;
     const change = depositType === 'deposit' ? amt : -amt;
 
-    const updated = savingsGoals.map((g) => {
+    const updated = goalsList.map((g) => {
       if (g.id === depositModalGoal.id) {
         const newAmt = Math.max(0, (parseFloat(g.currentAmount as any) || 0) + change);
         return { ...g, currentAmount: newAmt };
@@ -103,7 +105,7 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
 
   const handleDeleteGoal = (id: string) => {
     if (confirm('Are you sure you want to remove this savings goal?')) {
-      onUpdateGoals(savingsGoals.filter((g) => g.id !== id));
+      onUpdateGoals(goalsList.filter((g) => g.id !== id));
     }
   };
 
@@ -165,7 +167,7 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
 
       {/* Savings Goals Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {savingsGoals.map((goal) => {
+        {goalsList.map((goal) => {
           const current = parseFloat(goal.currentAmount as any) || 0;
           const target = parseFloat(goal.targetAmount as any) || 0;
           const pct = target > 0 ? (current / target) * 100 : 0;
@@ -180,7 +182,7 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2.5">
-                  <div className={`w-3.5 h-3.5 rounded-full ${goal.color}`} />
+                  <div className={`w-3.5 h-3.5 rounded-full ${goal.color || 'bg-purple-500'}`} />
                   <h3 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
                     {goal.name}
                   </h3>
@@ -200,7 +202,7 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
                       setEditGoalName(goal.name);
                       setEditGoalTarget(goal.targetAmount.toString());
                       setEditGoalCurrent(goal.currentAmount.toString());
-                      setEditGoalColor(goal.color);
+                      setEditGoalColor(goal.color || 'bg-purple-500');
                     }}
                     className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
                     title="Edit Goal Details"
@@ -229,7 +231,7 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
               {/* Progress Bar */}
               <div className={`w-full h-3 rounded-full overflow-hidden mb-2 ${isDarkMode ? 'bg-gray-700' : 'bg-slate-100'}`}>
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${goal.color}`}
+                  className={`h-full rounded-full transition-all duration-500 ${goal.color || 'bg-purple-500'}`}
                   style={{ width: `${Math.min(pct, 100)}%` }}
                 />
               </div>
