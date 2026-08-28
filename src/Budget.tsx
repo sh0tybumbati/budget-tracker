@@ -1111,7 +1111,7 @@ const BudgetTracker = () => {
     }, 0);
   
   const totalExpenses = activeEntries
-    .filter(entry => entry.type === 'expense' && isEntryCheckedForPeriod(entry.id, currentPeriod))
+    .filter(entry => (entry.type === 'expense' || entry.type === 'savings' || entry.type === 'debt') && isEntryCheckedForPeriod(entry.id, currentPeriod))
     .reduce((sum, entry) => {
       const occurrences = getEntryOccurrenceCount(entry, currentPeriod.start, currentPeriod.end);
       const adjustedAmount = getAdjustedAmount(entry, currentPeriod);
@@ -1827,6 +1827,11 @@ const BudgetTracker = () => {
                               ? 'border-purple-500 bg-purple-900/30' 
                               : 'border-purple-500 bg-purple-50'
                             )
+                          : entry.type === 'debt'
+                          ? (isDarkMode 
+                              ? 'border-rose-500 bg-rose-900/30' 
+                              : 'border-rose-500 bg-rose-50'
+                            )
                           : (isDarkMode 
                               ? 'border-red-500 bg-red-900/30' 
                               : 'border-red-500 bg-red-50'
@@ -2282,7 +2287,7 @@ const BudgetTracker = () => {
             }`}>Type</label>
             <select
               value={newEntry.type}
-              onChange={(e) => setNewEntry({...newEntry, type: e.target.value, category: ''})}
+              onChange={(e) => setNewEntry({...newEntry, type: e.target.value, category: '', linkedDebtId: ''})}
               className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 backdrop-blur-sm ${
                 isDarkMode 
                   ? 'border-gray-600 bg-gray-700/50 text-gray-200' 
@@ -2292,6 +2297,7 @@ const BudgetTracker = () => {
               <option value="income">Income 💼</option>
               <option value="expense">Expense 💸</option>
               <option value="savings">Savings Allocation 🐖</option>
+              <option value="debt">Debt Payment 💳</option>
             </select>
           </div>
           
@@ -2327,29 +2333,31 @@ const BudgetTracker = () => {
             </select>
           </div>
 
-          <div>
-            <label className={`block text-sm font-semibold mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-slate-700'
-            }`}>
-              Link to Debt / Loan (Optional) 💳
-            </label>
-            <select
-              value={newEntry.linkedDebtId || ''}
-              onChange={(e) => setNewEntry({...newEntry, linkedDebtId: e.target.value})}
-              className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 backdrop-blur-sm ${
-                isDarkMode 
-                  ? 'border-gray-600 bg-gray-700/50 text-gray-200' 
-                  : 'border-slate-300 bg-white/50 text-slate-900'
-              }`}
-            >
-              <option value="">None (Regular Budget Entry)</option>
-              {debtItems.map((debt) => (
-                <option key={debt.id} value={debt.id}>
-                  {debt.name} (Remaining Bal: {formatCurrency(debt.remainingBalance)})
-                </option>
-              ))}
-            </select>
-          </div>
+          {newEntry.type === 'debt' && (
+            <div>
+              <label className={`block text-sm font-semibold mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-slate-700'
+              }`}>
+                Select Debt / Loan Item to Pay 💳
+              </label>
+              <select
+                value={newEntry.linkedDebtId || ''}
+                onChange={(e) => setNewEntry({...newEntry, linkedDebtId: e.target.value})}
+                className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 backdrop-blur-sm ${
+                  isDarkMode 
+                    ? 'border-gray-600 bg-gray-700/50 text-gray-200' 
+                    : 'border-slate-300 bg-white/50 text-slate-900'
+                }`}
+              >
+                <option value="">Select debt item...</option>
+                {debtItems.map((debt) => (
+                  <option key={debt.id} value={debt.id}>
+                    {debt.name} (Remaining Bal: {formatCurrency(debt.remainingBalance)})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           
           <div>
             <label className={`block text-sm font-semibold mb-2 ${
