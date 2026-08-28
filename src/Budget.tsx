@@ -1,10 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { PlusCircle, Trash2, Calendar, DollarSign, Clock, ChevronLeft, ChevronRight, BarChart3, Edit2, Save, X, Download, Upload, Database, CalendarDays, ArrowUpDown, ArrowUp, ArrowDown, Sun, Moon, CalendarRange, CalendarCheck, Loader2, Wifi, WifiOff, Check, Calculator, Search, User, LogIn, LogOut, Settings, ShieldCheck, Cloud, CloudOff, FileSpreadsheet, Tag, Bell } from 'lucide-react';
+import { PlusCircle, Trash2, Calendar, DollarSign, Clock, ChevronLeft, ChevronRight, BarChart3, Edit2, Save, X, Download, Upload, Database, CalendarDays, ArrowUpDown, ArrowUp, ArrowDown, Sun, Moon, CalendarRange, CalendarCheck, Loader2, Wifi, WifiOff, Check, Calculator, Search, User, LogIn, LogOut, Settings, ShieldCheck, Cloud, CloudOff, FileSpreadsheet, Tag, Bell, PiggyBank, LayoutDashboard } from 'lucide-react';
 import { getSupabaseClient, fetchUserBudgetData, saveUserBudgetData, getSupabaseCredentials } from './lib/supabase';
 import { SupabaseAuthModal } from './components/SupabaseAuthModal';
 import { SupabaseConfigModal } from './components/SupabaseConfigModal';
 import { CategoryBreakdownChart } from './components/CategoryBreakdownChart';
 import { CustomCategoryModal } from './components/CustomCategoryModal';
+import { HeaderNav, DashboardTab } from './components/HeaderNav';
+import { MetricCards } from './components/MetricCards';
+import { SavingsTracker } from './components/SavingsTracker';
+import { SavingsGoal, INITIAL_SAVINGS_GOALS, calculateTotalSavings } from './lib/savings';
 import { CURRENCIES, formatMoney, DEFAULT_CURRENCY_CODE } from './lib/currency';
 import { exportEntriesToCSV } from './lib/csvExport';
 
@@ -65,9 +69,11 @@ const BudgetTracker = () => {
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [supabaseConfigured, setSupabaseConfigured] = useState(false);
 
-  // New Features State
+  // New Features & Layout State
+  const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [currencyCode, setCurrencyCode] = useState('PHP');
   const [customCategories, setCustomCategories] = useState({ income: {}, expense: {} });
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(INITIAL_SAVINGS_GOALS);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
   // Initialize Supabase Auth Session listener
@@ -151,6 +157,9 @@ const BudgetTracker = () => {
           }
           if (loadedData.customCategories) {
             setCustomCategories(loadedData.customCategories);
+          }
+          if (loadedData.savingsGoals && Array.isArray(loadedData.savingsGoals)) {
+            setSavingsGoals(loadedData.savingsGoals);
           }
         }
       } catch (error) {
@@ -871,7 +880,8 @@ const BudgetTracker = () => {
       periodType: periodTypeToSave,
       timelineCheckedEntries: checkedEntriesToSave,
       currencyCode: currencyCode,
-      customCategories: customCategories
+      customCategories: customCategories,
+      savingsGoals: savingsGoals
     };
     
     // Always backup to localStorage
@@ -927,7 +937,8 @@ const BudgetTracker = () => {
       periodType: periodType,
       timelineCheckedEntries: timelineCheckedEntries,
       currencyCode: currencyCode,
-      customCategories: customCategories
+      customCategories: customCategories,
+      savingsGoals: savingsGoals
     };
     
     // Backup to local storage
@@ -1195,146 +1206,88 @@ const BudgetTracker = () => {
       )}
       <div className={`min-h-screen transition-colors duration-300 ${
         isDarkMode 
-          ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-gray-800' 
-          : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50'
+          ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-gray-800 text-white' 
+          : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 text-slate-800'
       }`}>
-      <div className="w-[95%] max-w-none mx-auto p-6">
-        <div className="mb-8">
-          <div className={`rounded-2xl p-8 shadow-lg border transition-colors duration-300 ${
-            isDarkMode 
-              ? 'bg-gray-800/80 backdrop-blur-sm border-gray-700/50' 
-              : 'bg-white/80 backdrop-blur-sm border-white/20'
-          }`}>
-            <div className="text-center relative">
-              <div className="absolute top-0 right-0 flex items-center space-x-2">
-                {/* Auto-save indicator */}
-                <div className={`flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
-                  autoSaveStatus === 'saving' 
-                    ? isDarkMode ? 'bg-blue-800/50 text-blue-300' : 'bg-blue-100 text-blue-700'
-                    : autoSaveStatus === 'saved'
-                    ? isDarkMode ? 'bg-green-800/50 text-green-300' : 'bg-green-100 text-green-700'
-                    : autoSaveStatus === 'error'
-                    ? isDarkMode ? 'bg-red-800/50 text-red-300' : 'bg-red-100 text-red-700'
-                    : 'opacity-0'
-                }`}>
-                  {autoSaveStatus === 'saving' && (
-                    <>
-                      <Loader2 className="animate-spin mr-1" size={14} />
-                      Saving...
-                    </>
-                  )}
-                  {autoSaveStatus === 'saved' && (
-                    <>
-                      <Check className="mr-1" size={14} />
-                      Saved
-                    </>
-                  )}
-                  {autoSaveStatus === 'error' && (
-                    <>
-                      <WifiOff className="mr-1" size={14} />
-                      Offline
-                    </>
-                  )}
-                </div>
-                
-                {/* Supabase & User Controls */}
+      <div className="w-[95%] max-w-none mx-auto p-4 md:p-6">
+        {/* Header Navbar with Dashboard Tabs & Controls */}
+        <HeaderNav
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          currencyCode={currencyCode}
+          setCurrencyCode={(c) => {
+            setCurrencyCode(c);
+            autoSave(entries, periodType);
+          }}
+          currentUser={currentUser}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onOpenConfigModal={() => setIsConfigModalOpen(true)}
+          onSignOut={async () => {
+            const client = getSupabaseClient();
+            if (client) await client.auth.signOut();
+            setCurrentUser(null);
+          }}
+          supabaseConfigured={supabaseConfigured}
+          isDarkMode={isDarkMode}
+          setIsDarkMode={setIsDarkMode}
+        />
+
+        {/* Top Summary Metric Cards */}
+        <MetricCards
+          totalIncome={totalIncome}
+          totalExpenses={totalExpenses}
+          netAmount={netAmount}
+          totalSavings={calculateTotalSavings(savingsGoals)}
+          currencyCode={currencyCode}
+          isDarkMode={isDarkMode}
+        />
+
+        {/* TAB 1: OVERVIEW & ANALYTICS */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6 animate-fade-in">
+            <CategoryBreakdownChart
+              entries={entries}
+              currencyCode={currencyCode}
+              isDarkMode={isDarkMode}
+              categoryDefinitions={{
+                income: getAvailableCategories('income'),
+                expense: getAvailableCategories('expense'),
+              }}
+            />
+
+            {/* Savings Goals Preview */}
+            <div className={`p-6 rounded-2xl border shadow-lg ${
+              isDarkMode ? 'bg-gray-800/80 border-gray-700' : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-2">
-                  {/* Currency Selector */}
-                  <select
-                    value={currencyCode}
-                    onChange={(e) => {
-                      const newCurr = e.target.value;
-                      setCurrencyCode(newCurr);
-                      autoSave(entries, periodType);
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer focus:outline-none ${
-                      isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-slate-100 border-slate-200 text-slate-800'
-                    }`}
-                    title="Select Currency"
-                  >
-                    {Object.values(CURRENCIES).map((c) => (
-                      <option key={c.code} value={c.code}>
-                        {c.symbol} ({c.code})
-                      </option>
-                    ))}
-                  </select>
-
-                  {currentUser ? (
-                    <div className="flex items-center space-x-2">
-                      <div className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center border ${
-                        isDarkMode ? 'bg-emerald-900/40 border-emerald-700/50 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                      }`}>
-                        <Cloud size={14} className="mr-1.5 text-emerald-500" />
-                        <span className="max-w-[140px] truncate">{currentUser.email}</span>
-                      </div>
-                      <button
-                        onClick={async () => {
-                          const client = getSupabaseClient();
-                          if (client) await client.auth.signOut();
-                          setCurrentUser(null);
-                        }}
-                        className={`p-2.5 rounded-xl text-xs font-medium border transition-colors flex items-center ${
-                          isDarkMode ? 'bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-300' : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
-                        }`}
-                        title="Sign Out"
-                      >
-                        <LogOut size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setIsAuthModalOpen(true)}
-                      className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md transition-all flex items-center space-x-1.5"
-                    >
-                      <LogIn size={15} />
-                      <span>Sign In</span>
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => setIsConfigModalOpen(true)}
-                    className={`p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center border ${
-                      supabaseConfigured
-                        ? isDarkMode ? 'bg-gray-700 border-emerald-500/40 text-emerald-400' : 'bg-slate-100 border-emerald-500/40 text-emerald-600'
-                        : isDarkMode ? 'bg-gray-700 border-amber-500/40 text-amber-400' : 'bg-slate-100 border-amber-500/40 text-amber-600'
-                    }`}
-                    title="Supabase Cloud Config"
-                  >
-                    <Settings size={18} />
-                  </button>
-
-                  <button
-                    onClick={() => setIsDarkMode(!isDarkMode)}
-                    className={`p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center ${
-                      isDarkMode 
-                        ? 'bg-gray-700 hover:bg-gray-600' 
-                        : 'bg-slate-100 hover:bg-slate-200'
-                    }`}
-                    title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-                  >
-                    {isDarkMode ? <Sun size={18} className="text-amber-500" /> : <Moon size={18} className="text-slate-600" />}
-                  </button>
+                  <PiggyBank className="text-purple-500" size={24} />
+                  <h2 className="text-lg font-bold">Cumulative Savings Goals Summary</h2>
                 </div>
+                <button
+                  onClick={() => setActiveTab('savings')}
+                  className="text-xs font-bold text-purple-500 hover:underline"
+                >
+                  Manage All Goals →
+                </button>
               </div>
-              <h1 className={`text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent mb-2 ${
-                isDarkMode 
-                  ? 'from-white to-gray-300' 
-                  : 'from-slate-800 to-slate-600'
-              }`}>Budget Tracker</h1>
-              <p className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-slate-600'}`}>Track your income and expenses with precision</p>
+
+              <SavingsTracker
+                savingsGoals={savingsGoals}
+                onUpdateGoals={(updated) => {
+                  setSavingsGoals(updated);
+                  autoSave(entries, periodType);
+                }}
+                currencyCode={currencyCode}
+                isDarkMode={isDarkMode}
+              />
             </div>
           </div>
-        
-          {/* Category Visual Analytics Chart */}
-          <CategoryBreakdownChart
-            entries={entries}
-            currencyCode={currencyCode}
-            isDarkMode={isDarkMode}
-            categoryDefinitions={{
-              income: getAvailableCategories('income'),
-              expense: getAvailableCategories('expense'),
-            }}
-          />
+        )}
+
+        {/* TAB 2: BUDGET & ENTRIES */}
+        {activeTab === 'entries' && (
+          <div className="space-y-6 animate-fade-in">
           
           <div className="flex justify-center space-x-3 mb-6">
             <button
@@ -1485,7 +1438,6 @@ const BudgetTracker = () => {
               </button>
             </div>
           </div>
-        </div>
 
           {currentView === 'current' && (
             <div className={`relative p-6 rounded-2xl border-2 shadow-lg transition-all duration-300 overflow-hidden ${
@@ -2193,6 +2145,93 @@ const BudgetTracker = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: SAVINGS GOALS */}
+        {activeTab === 'savings' && (
+          <div className="space-y-6 animate-fade-in">
+            <SavingsTracker
+              savingsGoals={savingsGoals}
+              onUpdateGoals={(updated) => {
+                setSavingsGoals(updated);
+                autoSave(entries, periodType);
+              }}
+              currencyCode={currencyCode}
+              isDarkMode={isDarkMode}
+            />
+          </div>
+        )}
+
+        {/* TAB 4: DATA & SETTINGS */}
+        {activeTab === 'settings' && (
+          <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+            <div className={`p-6 rounded-2xl border shadow-lg ${
+              isDarkMode ? 'bg-gray-800/80 border-gray-700' : 'bg-white border-slate-200'
+            }`}>
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <Database className="text-blue-500" size={22} />
+                <span>Backup & Data Management</span>
+              </h2>
+
+              <div className="flex flex-wrap gap-3 mb-6">
+                <button
+                  onClick={saveData}
+                  disabled={isSaving}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold text-xs rounded-xl shadow hover:from-blue-700 flex items-center space-x-2"
+                >
+                  {isSaving ? <Loader2 className="animate-spin" size={16} /> : <Database size={16} />}
+                  <span>{isSaving ? 'Saving...' : 'Save to Cloud/Local'}</span>
+                </button>
+
+                <button
+                  onClick={exportData}
+                  className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-bold text-xs rounded-xl shadow hover:from-emerald-700 flex items-center space-x-2"
+                >
+                  <Download size={16} />
+                  <span>Export JSON Backup</span>
+                </button>
+
+                <button
+                  onClick={() => exportEntriesToCSV(entries, currencyCode)}
+                  className="px-6 py-3 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold text-xs rounded-xl shadow hover:from-teal-700 flex items-center space-x-2"
+                >
+                  <FileSpreadsheet size={16} />
+                  <span>Export CSV Spreadsheet</span>
+                </button>
+
+                <button
+                  onClick={triggerImport}
+                  disabled={isImporting}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold text-xs rounded-xl shadow hover:from-purple-700 flex items-center space-x-2"
+                >
+                  {isImporting ? <Loader2 className="animate-spin" size={16} /> : <Upload size={16} />}
+                  <span>Import JSON Backup</span>
+                </button>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={importData}
+                  className="hidden"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-gray-200/20 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-bold">Custom Categories</h3>
+                  <p className="text-xs opacity-70">Add personalized income or expense categories</p>
+                </div>
+                <button
+                  onClick={() => setIsCategoryModalOpen(true)}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow flex items-center space-x-1.5"
+                >
+                  <Tag size={16} />
+                  <span>Add Custom Category</span>
+                </button>
               </div>
             </div>
           </div>
@@ -3055,8 +3094,8 @@ const BudgetTracker = () => {
             })}
         </div>
       </div>
-      </div>
     </div>
+  )}
 
     {/* Adjustment Modal */}
     {adjustmentModal && (
@@ -3150,6 +3189,9 @@ const BudgetTracker = () => {
         </div>
       </div>
     )}
+
+      </div>
+    </div>
 
     {/* Supabase & Custom Category Modals */}
     <SupabaseAuthModal
