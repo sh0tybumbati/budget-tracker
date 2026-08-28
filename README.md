@@ -1,113 +1,71 @@
 # Budget Tracker
 
-A modern, feature-rich budget tracking application built with React, Node.js, and SQLite.
+A modern, feature-rich budget tracking application built with **React 19**, **TypeScript**, **Tailwind CSS**, and **Supabase** (or Node.js/Express + PostgreSQL). Supports static hosting on **GitHub Pages** with multi-user authentication and cloud sync.
 
-## Features
+---
 
-- 📊 **Real-time budget tracking** with income and expense management
-- 🏷️ **Categorized entries** with color-coded organization
-- 📅 **Multiple period views**: Current period, Timeline, and Calendar views
-- 🔍 **Search and filtering** capabilities
-- 📈 **Visual expense breakdown** with interactive pie charts
-- 🌓 **Dark/Light mode** toggle
-- 💾 **Automatic saving** with network sync
-- 📱 **Responsive design** for mobile and desktop
-- 🏃‍♂️ **Quick calculations** with running totals preview
+## 🌟 Key Features
 
-## Quick Start with Docker
+- 🔐 **Multi-User Authentication**: Individual user accounts with isolated budget workspaces via Supabase Auth.
+- ☁️ **Cloud Database Sync**: Automatic real-time persistence with Supabase PostgreSQL and Row Level Security (RLS).
+- 📊 **Real-time Budget Tracking**: Income and expense entry management with running totals preview.
+- 🏷️ **Categorized Entries**: Color-coded category tags with custom adjustments.
+- 📅 **Multiple Period Views**: Current period, Timeline, and Calendar views.
+- 🔍 **Search & Filtering**: Quick searching and sorting across entries.
+- 🌓 **Dark / Light Mode**: Dynamic themes.
+- 💾 **Offline Fallback**: Automatic `localStorage` backup when offline or unauthenticated.
+- 🚀 **GitHub Pages Ready**: Deploys automatically via GitHub Actions.
 
-### Option 1: Docker Compose (Recommended)
+---
 
-```bash
-# Clone or navigate to the project directory
-cd /home/ad/Project/Budget
+## 🚀 GitHub Pages & Supabase Setup
 
-# Build and start the application
-docker-compose up -d
+### Step 1: Create Supabase Project
+1. Create a free account at [Supabase](https://supabase.com/).
+2. Create a new project and copy your **Project URL** and **Anon API Key** from **Project Settings -> API**.
 
-# Access the application
-open http://localhost:3001
-```
+### Step 2: Set Up Database Schema & Security Rules
+1. Open your Supabase project dashboard and go to **SQL Editor**.
+2. Run the script provided in [`supabase_setup.sql`](file:///home/ad/Projects/budget-tracker/supabase_setup.sql):
+   ```sql
+   -- Creates budget_data table linked to auth.users and enables Row Level Security (RLS)
+   ```
 
-### Option 2: Docker Build & Run
+### Step 3: Deploy to GitHub Pages
+1. Push this repository to GitHub.
+2. In your GitHub repository, go to **Settings -> Secrets and variables -> Actions**.
+3. Add two repository secrets:
+   - `VITE_SUPABASE_URL`: Your Supabase Project URL
+   - `VITE_SUPABASE_ANON_KEY`: Your Supabase Anon Key
+4. Go to **Settings -> Pages** and set the source build to **GitHub Actions**.
+5. Push to the `main` branch to trigger the automated deployment workflow ([.github/workflows/deploy.yml](file:///home/ad/Projects/budget-tracker/.github/workflows/deploy.yml)).
 
-```bash
-# Build the Docker image
-docker build -t budget-tracker .
+---
 
-# Run the container
-docker run -d \
-  --name budget-tracker \
-  -p 3001:3001 \
-  -v budget_data:/app/data \
-  budget-tracker
-
-# Access the application
-open http://localhost:3001
-```
-
-## Network Access
-
-The application will be accessible on your network at:
-- **Local**: http://localhost:3001
-- **Network**: http://YOUR_IP_ADDRESS:3001
-
-Replace `YOUR_IP_ADDRESS` with your machine's IP address to access from other devices on your network.
-
-## Development Setup
-
-If you want to run it locally without Docker:
+## 💻 Local Development
 
 ```bash
 # Install dependencies
 npm install
 
-# Start the development server and backend
+# Option A: Start Vite development server
+npm run dev
+
+# Option B: Run local Express server (port 3001)
 npm start
-
-# Or run them separately:
-npm run server  # Backend on port 3001
-npm run dev     # Frontend on port 5173
 ```
 
-## Data Persistence
+---
 
-- **Docker**: Data is persisted in a Docker volume (`budget_data`)
-- **Local**: Data is stored in `budget.db` SQLite file
+## 🛠 Technology Stack
 
-## Docker Commands
+- **Frontend**: React 19, TypeScript, Tailwind CSS, Vite, Lucide Icons
+- **Backend / Database**: Supabase JS SDK, PostgreSQL, Row Level Security
+- **CI/CD**: GitHub Actions, GitHub Pages
+- **Alternative Backend**: Express, PostgreSQL / SQLite, Docker
 
-```bash
-# View logs
-docker-compose logs -f
+---
 
-# Stop the application
-docker-compose down
-
-# Update the application
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
-
-# Backup database
-docker run --rm -v budget_data:/data -v $(pwd):/backup alpine tar czf /backup/budget-backup.tar.gz -C /data .
-
-# Restore database
-docker run --rm -v budget_data:/data -v $(pwd):/backup alpine tar xzf /backup/budget-backup.tar.gz -C /data
-```
-
-## Environment Variables
-
-- `NODE_ENV`: Set to `production` in Docker
-- `PORT`: Server port (default: 3001)
-
-## Technology Stack
-
-- **Frontend**: React 19, TypeScript, Tailwind CSS, Vite
-- **Backend**: Node.js, Express, SQLite
-- **Containerization**: Docker, Docker Compose
-- **Icons**: Lucide React
-
-## License
+## 📄 License
 
 This project is open source and available under the [MIT License](LICENSE).

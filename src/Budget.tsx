@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { PlusCircle, Trash2, Calendar, DollarSign, Clock, ChevronLeft, ChevronRight, BarChart3, Edit2, Save, X, Download, Upload, Database, CalendarDays, ArrowUpDown, ArrowUp, ArrowDown, Sun, Moon, CalendarRange, CalendarCheck, Loader2, Wifi, WifiOff, Check, Calculator, Search } from 'lucide-react';
+import { PlusCircle, Trash2, Calendar, DollarSign, Clock, ChevronLeft, ChevronRight, BarChart3, Edit2, Save, X, Download, Upload, Database, CalendarDays, ArrowUpDown, ArrowUp, ArrowDown, Sun, Moon, CalendarRange, CalendarCheck, Loader2, Wifi, WifiOff, Check, Calculator, Search, User, LogIn, LogOut, Settings, ShieldCheck, Cloud, CloudOff } from 'lucide-react';
+import { getSupabaseClient, fetchUserBudgetData, saveUserBudgetData, getSupabaseCredentials } from './lib/supabase';
+import { SupabaseAuthModal } from './components/SupabaseAuthModal';
+import { SupabaseConfigModal } from './components/SupabaseConfigModal';
 
 // Category definitions with colors
 const INCOME_CATEGORIES = {
@@ -52,49 +55,91 @@ const BudgetTracker = () => {
   const [adjustmentNote, setAdjustmentNote] = useState('');
   const fileInputRef = useRef(null);
 
-  // Load data from shared backend on component mount and set up auto-sync
+  // Supabase Auth & Config State
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [supabaseConfigured, setSupabaseConfigured] = useState(false);
+
+  // Initialize Supabase Auth Session listener
+  useEffect(() => {
+    const initAuth = async () => {
+      const client = getSupabaseClient();
+      if (client) {
+        setSupabaseConfigured(true);
+        const { data } = await client.auth.getUser();
+        setCurrentUser(data.user || null);
+
+        const { data: listener } = client.auth.onAuthStateChange((_event, session) => {
+          setCurrentUser(session?.user || null);
+        });
+
+        return () => {
+          listener.subscription.unsubscribe();
+        };
+      } else {
+        setSupabaseConfigured(false);
+      }
+    };
+    initAuth();
+  }, [isConfigModalOpen]);
+
+  // Load data from Supabase backend or fallback to localStorage
   useEffect(() => {
     const loadData = async (showLoading = false, isInitialLoad = false) => {
       if (showLoading) setIsLoading(true);
       try {
-        const apiUrl = window.location.hostname === 'localhost' 
-          ? 'http://localhost:3001/api/budget'
-          : `http://${window.location.hostname}:3001/api/budget`;
-        const response = await fetch(apiUrl);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.entries && Array.isArray(data.entries)) {
-            setEntries(data.entries);
+        let loadedData = null;
+
+        // 1. Try fetching from Supabase if logged in
+        if (currentUser) {
+          try {
+            loadedData = await fetchUserBudgetData();
+          } catch (supaErr) {
+            console.warn('Supabase fetch failed, trying fallbacks:', supaErr);
           }
-          // Only update periodType on initial load, not during auto-sync
-          if (data.periodType && isInitialLoad) {
-            setPeriodType(data.periodType);
+        }
+
+        // 2. Fallback to Express backend if running locally
+        if (!loadedData) {
+          try {
+            const apiUrl = window.location.hostname === 'localhost' 
+              ? 'http://localhost:3001/api/budget'
+              : `http://${window.location.hostname}:3001/api/budget`;
+            const response = await fetch(apiUrl);
+            if (response.ok) {
+              loadedData = await response.json();
+            }
+          } catch (apiErr) {
+            // Local backend offline
           }
-          if (data.timelineCheckedEntries) {
-            setTimelineCheckedEntries(data.timelineCheckedEntries);
+        }
+
+        // 3. Fallback to localStorage
+        if (!loadedData) {
+          const savedData = localStorage.getItem('budgetTrackerData');
+          if (savedData) {
+            try {
+              loadedData = JSON.parse(savedData);
+            } catch (pErr) {
+              console.error('Error parsing localStorage data:', pErr);
+            }
+          }
+        }
+
+        if (loadedData) {
+          if (loadedData.entries && Array.isArray(loadedData.entries)) {
+            setEntries(loadedData.entries);
+          }
+          if (loadedData.periodType && isInitialLoad) {
+            setPeriodType(loadedData.periodType);
+          }
+          if (loadedData.timelineCheckedEntries) {
+            setTimelineCheckedEntries(loadedData.timelineCheckedEntries);
           }
         }
       } catch (error) {
-        console.error('Error loading data from server:', error);
-        // Fallback to localStorage if server is unavailable
-        const savedData = localStorage.getItem('budgetTrackerData');
-        if (savedData) {
-          try {
-            const parsedData = JSON.parse(savedData);
-            if (parsedData.entries && Array.isArray(parsedData.entries)) {
-              setEntries(parsedData.entries);
-            }
-            // Only update periodType on initial load, not during auto-sync
-            if (parsedData.periodType && isInitialLoad) {
-              setPeriodType(parsedData.periodType);
-            }
-            if (parsedData.timelineCheckedEntries) {
-              setTimelineCheckedEntries(parsedData.timelineCheckedEntries);
-            }
-          } catch (parseError) {
-            console.error('Error parsing localStorage data:', parseError);
-          }
-        }
+        console.error('Error loading budget data:', error);
       } finally {
         if (showLoading) setIsLoading(false);
       }
@@ -103,7 +148,7 @@ const BudgetTracker = () => {
     // Initial load
     loadData(true, true);
     
-    // Set up auto-sync every 5 seconds (don't update periodType during auto-sync)
+    // Set up auto-sync every 10 seconds
     const syncInterval = setInterval(async () => {
       setAutoSaveStatus('saving');
       try {
@@ -114,11 +159,10 @@ const BudgetTracker = () => {
         setAutoSaveStatus('error');
         setTimeout(() => setAutoSaveStatus('idle'), 3000);
       }
-    }, 5000);
+    }, 10000);
     
-    // Cleanup interval on component unmount
     return () => clearInterval(syncInterval);
-  }, []);
+  }, [currentUser]);
   const [newEntry, setNewEntry] = useState({
     label: '',
     amount: '',
@@ -806,10 +850,6 @@ const BudgetTracker = () => {
     }, 100);
   };
 
-  const cancelEdit = () => {
-    setEditingEntry(null);
-  };
-
   const autoSave = async (entriesToSave, periodTypeToSave, checkedEntriesToSave = timelineCheckedEntries) => {
     const dataToSave = {
       entries: entriesToSave,
@@ -817,21 +857,40 @@ const BudgetTracker = () => {
       timelineCheckedEntries: checkedEntriesToSave
     };
     
+    // Always backup to localStorage
+    localStorage.setItem('budgetTrackerData', JSON.stringify({
+      ...dataToSave,
+      lastSaved: new Date().toISOString(),
+      version: '1.0'
+    }));
+
+    // If signed into Supabase, save to cloud
+    if (currentUser) {
+      try {
+        await saveUserBudgetData(dataToSave);
+      } catch (error) {
+        console.error('Supabase auto-save failed:', error);
+      }
+      return;
+    }
+
+    // Otherwise try Express backend if available
     try {
       const apiUrl = window.location.hostname === 'localhost' 
         ? 'http://localhost:3001/api/budget'
         : `http://${window.location.hostname}:3001/api/budget`;
       await fetch(apiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSave),
       });
-      // Silent auto-save, no alert
     } catch (error) {
-      console.error('Auto-save failed:', error);
+      // Quiet fail on local offline
     }
+  };
+
+  const cancelEdit = () => {
+    setEditingEntry(null);
   };
 
   const removeEntry = (id) => {
@@ -852,44 +911,36 @@ const BudgetTracker = () => {
       timelineCheckedEntries: timelineCheckedEntries
     };
     
+    // Backup to local storage
+    localStorage.setItem('budgetTrackerData', JSON.stringify({
+      ...dataToSave,
+      lastSaved: new Date().toISOString(),
+      version: '1.0'
+    }));
+
     try {
-      const apiUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:3001/api/budget'
-        : `http://${window.location.hostname}:3001/api/budget`;
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(dataToSave),
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        alert('Data saved successfully to shared storage!');
-        // Also save to localStorage as backup
-        localStorage.setItem('budgetTrackerData', JSON.stringify({
-          ...dataToSave,
-          lastSaved: new Date().toISOString(),
-          version: '1.0'
-        }));
+      if (currentUser) {
+        await saveUserBudgetData(dataToSave);
+        alert('Data saved successfully to Supabase Cloud!');
       } else {
-        throw new Error('Server responded with error');
+        const apiUrl = window.location.hostname === 'localhost' 
+          ? 'http://localhost:3001/api/budget'
+          : `http://${window.location.hostname}:3001/api/budget`;
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dataToSave),
+        });
+        
+        if (response.ok) {
+          alert('Data saved successfully to server!');
+        } else {
+          alert('Data saved locally (Sign in with Supabase for cloud sync across devices).');
+        }
       }
     } catch (error) {
-      console.error('Error saving data to server:', error);
-      // Fallback to localStorage
-      try {
-        localStorage.setItem('budgetTrackerData', JSON.stringify({
-          ...dataToSave,
-          lastSaved: new Date().toISOString(),
-          version: '1.0'
-        }));
-        alert('Data saved locally (server unavailable)');
-      } catch (localError) {
-        console.error('Error saving data locally:', localError);
-        alert('Error saving data. Please try again.');
-      }
+      console.error('Error saving data:', error);
+      alert('Data saved locally to browser storage.');
     } finally {
       setIsSaving(false);
     }
@@ -1136,17 +1187,64 @@ const BudgetTracker = () => {
                   )}
                 </div>
                 
-                <button
-                  onClick={() => setIsDarkMode(!isDarkMode)}
-                  className={`p-3 rounded-xl transition-all duration-200 flex items-center justify-center ${
-                    isDarkMode 
-                      ? 'bg-gray-700 hover:bg-gray-600' 
-                      : 'bg-slate-100 hover:bg-slate-200'
-                  }`}
-                  title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-                >
-                  {isDarkMode ? <Sun size={24} className="text-amber-500" /> : <Moon size={24} className="text-slate-600" />}
-                </button>
+                {/* Supabase & User Controls */}
+                <div className="flex items-center space-x-2">
+                  {currentUser ? (
+                    <div className="flex items-center space-x-2">
+                      <div className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center border ${
+                        isDarkMode ? 'bg-emerald-900/40 border-emerald-700/50 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                      }`}>
+                        <Cloud size={14} className="mr-1.5 text-emerald-500" />
+                        <span className="max-w-[140px] truncate">{currentUser.email}</span>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          const client = getSupabaseClient();
+                          if (client) await client.auth.signOut();
+                          setCurrentUser(null);
+                        }}
+                        className={`p-2.5 rounded-xl text-xs font-medium border transition-colors flex items-center ${
+                          isDarkMode ? 'bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-300' : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
+                        }`}
+                        title="Sign Out"
+                      >
+                        <LogOut size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setIsAuthModalOpen(true)}
+                      className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md transition-all flex items-center space-x-1.5"
+                    >
+                      <LogIn size={15} />
+                      <span>Sign In</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setIsConfigModalOpen(true)}
+                    className={`p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center border ${
+                      supabaseConfigured
+                        ? isDarkMode ? 'bg-gray-700 border-emerald-500/40 text-emerald-400' : 'bg-slate-100 border-emerald-500/40 text-emerald-600'
+                        : isDarkMode ? 'bg-gray-700 border-amber-500/40 text-amber-400' : 'bg-slate-100 border-amber-500/40 text-amber-600'
+                    }`}
+                    title="Supabase Cloud Config"
+                  >
+                    <Settings size={18} />
+                  </button>
+
+                  <button
+                    onClick={() => setIsDarkMode(!isDarkMode)}
+                    className={`p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center ${
+                      isDarkMode 
+                        ? 'bg-gray-700 hover:bg-gray-600' 
+                        : 'bg-slate-100 hover:bg-slate-200'
+                    }`}
+                    title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                  >
+                    {isDarkMode ? <Sun size={18} className="text-amber-500" /> : <Moon size={18} className="text-slate-600" />}
+                  </button>
+                </div>
               </div>
               <h1 className={`text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent mb-2 ${
                 isDarkMode 
@@ -2943,6 +3041,27 @@ const BudgetTracker = () => {
         </div>
       </div>
     )}
+
+    {/* Supabase Modals */}
+    <SupabaseAuthModal
+      isOpen={isAuthModalOpen}
+      onClose={() => setIsAuthModalOpen(false)}
+      onSuccess={() => {
+        setIsAuthModalOpen(false);
+      }}
+      isDarkMode={isDarkMode}
+    />
+
+    <SupabaseConfigModal
+      isOpen={isConfigModalOpen}
+      onClose={() => setIsConfigModalOpen(false)}
+      onSaved={() => {
+        setIsConfigModalOpen(false);
+        const client = getSupabaseClient();
+        setSupabaseConfigured(!!client);
+      }}
+      isDarkMode={isDarkMode}
+    />
     </>
   );
 };
