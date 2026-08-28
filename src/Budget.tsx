@@ -1772,6 +1772,11 @@ const BudgetTracker = () => {
                               ? 'border-emerald-500 bg-emerald-900/30' 
                               : 'border-emerald-500 bg-emerald-50'
                             )
+                          : entry.type === 'savings'
+                          ? (isDarkMode 
+                              ? 'border-purple-500 bg-purple-900/30' 
+                              : 'border-purple-500 bg-purple-50'
+                            )
                           : (isDarkMode 
                               ? 'border-red-500 bg-red-900/30' 
                               : 'border-red-500 bg-red-50'
@@ -1805,7 +1810,13 @@ const BudgetTracker = () => {
                             )}
                           </div>
                           <div className="flex items-center space-x-2">
-                            <span className={`font-bold ${entry.type === 'income' ? 'text-emerald-600' : 'text-red-600'}`}>
+                            <span className={`font-bold ${
+                              entry.type === 'income' 
+                                ? 'text-emerald-600' 
+                                : entry.type === 'savings'
+                                ? 'text-purple-600'
+                                : 'text-red-600'
+                            }`}>
                               {hasAdjustment ? (
                                 <span className="flex items-center space-x-1">
                                   <span className="text-xs opacity-70">{formatCurrency(entry.amount)}</span>
@@ -2307,8 +2318,9 @@ const BudgetTracker = () => {
                   : 'border-slate-300 bg-white/50 text-slate-900'
               }`}
             >
-              <option value="income">Income</option>
-              <option value="expense">Expense</option>
+              <option value="income">Income 💼</option>
+              <option value="expense">Expense 💸</option>
+              <option value="savings">Savings Allocation 🐖</option>
             </select>
           </div>
           
