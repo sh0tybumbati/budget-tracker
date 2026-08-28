@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { PlusCircle, Trash2, Calendar, DollarSign, Clock, ChevronLeft, ChevronRight, BarChart3, Edit2, Save, X, Download, Upload, Database, CalendarDays, ArrowUpDown, ArrowUp, ArrowDown, Sun, Moon, CalendarRange, CalendarCheck, Loader2, Wifi, WifiOff, Check, Calculator, Search, User, LogIn, LogOut, Settings, ShieldCheck, Cloud, CloudOff, FileSpreadsheet, Tag, Bell, PiggyBank, LayoutDashboard } from 'lucide-react';
+import { PlusCircle, Trash2, Calendar, DollarSign, Clock, ChevronLeft, ChevronRight, BarChart3, Edit2, Save, X, Download, Upload, Database, CalendarDays, ArrowUpDown, ArrowUp, ArrowDown, Sun, Moon, CalendarRange, CalendarCheck, Loader2, Wifi, WifiOff, Check, Calculator, Search, User, LogIn, LogOut, Settings, ShieldCheck, Cloud, CloudOff, FileSpreadsheet, Tag, Bell, PiggyBank, LayoutDashboard, CreditCard } from 'lucide-react';
 import { getSupabaseClient, fetchUserBudgetData, saveUserBudgetData, getSupabaseCredentials } from './lib/supabase';
 import { SupabaseAuthModal } from './components/SupabaseAuthModal';
 import { SupabaseConfigModal } from './components/SupabaseConfigModal';
@@ -124,12 +124,9 @@ const BudgetTracker = () => {
         }
 
         // 2. Fallback to Express backend if running locally
-        if (!loadedData) {
+        if (!loadedData && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
           try {
-            const apiUrl = window.location.hostname === 'localhost' 
-              ? 'http://localhost:3001/api/budget'
-              : `http://${window.location.hostname}:3001/api/budget`;
-            const response = await fetch(apiUrl);
+            const response = await fetch('http://localhost:3001/api/budget');
             if (response.ok) {
               loadedData = await response.json();
             }
@@ -989,21 +986,19 @@ const BudgetTracker = () => {
       if (currentUser) {
         await saveUserBudgetData(dataToSave);
         alert('Data saved successfully to Supabase Cloud!');
-      } else {
-        const apiUrl = window.location.hostname === 'localhost' 
-          ? 'http://localhost:3001/api/budget'
-          : `http://${window.location.hostname}:3001/api/budget`;
-        const response = await fetch(apiUrl, {
+      } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        const response = await fetch('http://localhost:3001/api/budget', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(dataToSave),
         });
-        
         if (response.ok) {
           alert('Data saved successfully to server!');
         } else {
           alert('Data saved locally (Sign in with Supabase for cloud sync across devices).');
         }
+      } else {
+        alert('Data saved locally to browser storage. (Sign in with Supabase for cloud sync across devices)');
       }
     } catch (error) {
       console.error('Error saving data:', error);
