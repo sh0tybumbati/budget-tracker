@@ -18,12 +18,21 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
 }) => {
   const [isAddGoalModalOpen, setIsAddGoalModalOpen] = useState(false);
   const [depositModalGoal, setDepositModalGoal] = useState<SavingsGoal | null>(null);
+  const [editModalGoal, setEditModalGoal] = useState<SavingsGoal | null>(null);
 
+  // New goal state
   const [newGoalName, setNewGoalName] = useState('');
   const [newGoalTarget, setNewGoalTarget] = useState('');
   const [newGoalInitial, setNewGoalInitial] = useState('');
   const [newGoalColor, setNewGoalColor] = useState('bg-emerald-500');
 
+  // Edit goal state
+  const [editGoalName, setEditGoalName] = useState('');
+  const [editGoalTarget, setEditGoalTarget] = useState('');
+  const [editGoalCurrent, setEditGoalCurrent] = useState('');
+  const [editGoalColor, setEditGoalColor] = useState('bg-emerald-500');
+
+  // Deposit/Withdraw state
   const [depositAmount, setDepositAmount] = useState('');
   const [depositType, setDepositType] = useState<'deposit' | 'withdraw'>('deposit');
 
@@ -49,6 +58,27 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
     setNewGoalTarget('');
     setNewGoalInitial('');
     setIsAddGoalModalOpen(false);
+  };
+
+  const handleSaveEditGoal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editModalGoal || !editGoalName.trim() || !editGoalTarget) return;
+
+    const updated = savingsGoals.map((g) => {
+      if (g.id === editModalGoal.id) {
+        return {
+          ...g,
+          name: editGoalName.trim(),
+          targetAmount: parseFloat(editGoalTarget) || 0,
+          currentAmount: parseFloat(editGoalCurrent) || 0,
+          color: editGoalColor,
+        };
+      }
+      return g;
+    });
+
+    onUpdateGoals(updated);
+    setEditModalGoal(null);
   };
 
   const handleApplyDeposit = (e: React.FormEvent) => {
@@ -100,7 +130,7 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
 
           <button
             onClick={() => setIsAddGoalModalOpen(true)}
-            className="px-5 py-3 rounded-xl bg-white text-purple-700 font-bold text-xs shadow-lg hover:bg-opacity-95 transition-all flex items-center space-x-2"
+            className="px-5 py-3 rounded-xl bg-white text-purple-700 font-bold text-xs shadow-lg hover:bg-opacity-95 transition-all flex items-center space-x-2 cursor-pointer"
           >
             <PlusCircle size={18} />
             <span>Create New Goal</span>
@@ -159,14 +189,28 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
                 <div className="flex items-center space-x-1">
                   <button
                     onClick={() => setDepositModalGoal(goal)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-500/10 text-purple-500 hover:bg-purple-500/20 transition-all flex items-center space-x-1"
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-500/10 text-purple-500 hover:bg-purple-500/20 transition-all flex items-center space-x-1 cursor-pointer"
                   >
                     <PlusCircle size={14} />
-                    <span>Deposit</span>
+                    <span>Deposit / Edit</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditModalGoal(goal);
+                      setEditGoalName(goal.name);
+                      setEditGoalTarget(goal.targetAmount.toString());
+                      setEditGoalCurrent(goal.currentAmount.toString());
+                      setEditGoalColor(goal.color);
+                    }}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
+                    title="Edit Goal Details"
+                  >
+                    <Edit2 size={16} />
                   </button>
                   <button
                     onClick={() => handleDeleteGoal(goal.id)}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 transition-colors"
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                    title="Delete Goal"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -265,7 +309,7 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsAddGoalModalOpen(false)}
-                  className={`px-4 py-2 rounded-xl text-xs font-medium ${
+                  className={`px-4 py-2 rounded-xl text-xs font-medium cursor-pointer ${
                     isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-slate-100 text-slate-700'
                   }`}
                 >
@@ -273,9 +317,91 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 shadow"
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 shadow cursor-pointer"
                 >
                   Save Goal
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Goal Modal */}
+      {editModalGoal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div
+            className={`w-full max-w-md p-6 rounded-2xl shadow-2xl border ${
+              isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-slate-200 text-slate-800'
+            }`}
+          >
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <Edit2 className="text-blue-500" size={20} />
+              <span>Edit Savings Goal</span>
+            </h3>
+
+            <form onSubmit={handleSaveEditGoal} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 opacity-80">
+                  Goal Name & Emoji
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editGoalName}
+                  onChange={(e) => setEditGoalName(e.target.value)}
+                  className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none ${
+                    isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 opacity-80">
+                  Target Goal Amount
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  value={editGoalTarget}
+                  onChange={(e) => setEditGoalTarget(e.target.value)}
+                  className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none ${
+                    isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 opacity-80">
+                  Current Saved Amount
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editGoalCurrent}
+                  onChange={(e) => setEditGoalCurrent(e.target.value)}
+                  className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none ${
+                    isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setEditModalGoal(null)}
+                  className={`px-4 py-2 rounded-xl text-xs font-medium cursor-pointer ${
+                    isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow cursor-pointer"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>
@@ -347,7 +473,7 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
                 <button
                   type="button"
                   onClick={() => setDepositModalGoal(null)}
-                  className={`px-4 py-2 rounded-xl text-xs font-medium ${
+                  className={`px-4 py-2 rounded-xl text-xs font-medium cursor-pointer ${
                     isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-slate-100 text-slate-700'
                   }`}
                 >
@@ -355,7 +481,7 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow"
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow cursor-pointer"
                 >
                   Apply {depositType === 'deposit' ? 'Deposit' : 'Withdrawal'}
                 </button>

@@ -874,14 +874,19 @@ const BudgetTracker = () => {
     }, 100);
   };
 
-  const autoSave = async (entriesToSave, periodTypeToSave, checkedEntriesToSave = timelineCheckedEntries) => {
+  const autoSave = async (
+    entriesToSave = entries,
+    periodTypeToSave = periodType,
+    checkedEntriesToSave = timelineCheckedEntries,
+    goalsToSave = savingsGoals
+  ) => {
     const dataToSave = {
       entries: entriesToSave,
       periodType: periodTypeToSave,
       timelineCheckedEntries: checkedEntriesToSave,
       currencyCode: currencyCode,
       customCategories: customCategories,
-      savingsGoals: savingsGoals
+      savingsGoals: goalsToSave
     };
     
     // Always backup to localStorage
@@ -1276,7 +1281,7 @@ const BudgetTracker = () => {
                 savingsGoals={savingsGoals}
                 onUpdateGoals={(updated) => {
                   setSavingsGoals(updated);
-                  autoSave(entries, periodType);
+                  autoSave(entries, periodType, timelineCheckedEntries, updated);
                 }}
                 currencyCode={currencyCode}
                 isDarkMode={isDarkMode}
@@ -2157,7 +2162,7 @@ const BudgetTracker = () => {
               savingsGoals={savingsGoals}
               onUpdateGoals={(updated) => {
                 setSavingsGoals(updated);
-                autoSave(entries, periodType);
+                autoSave(entries, periodType, timelineCheckedEntries, updated);
               }}
               currencyCode={currencyCode}
               isDarkMode={isDarkMode}
