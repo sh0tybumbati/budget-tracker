@@ -891,11 +891,24 @@ const BudgetTracker = () => {
         : entry
     );
     setEntries(updatedEntries);
+
+    let updatedDebts = debtItems;
+    if (editingEntry.type === 'debt' && editingEntry.linkedDebtId) {
+      updatedDebts = debtItems.map((d) => {
+        if (d.id === editingEntry.linkedDebtId) {
+          const newRem = Math.max(0, (parseFloat(d.remainingBalance as any) || 0) - parseFloat(editingEntry.amount));
+          return { ...d, remainingBalance: newRem };
+        }
+        return d;
+      });
+      setDebtItems(updatedDebts);
+    }
+
     setEditingEntry(null);
     
     // Auto-save after editing entry
     setTimeout(() => {
-      autoSave(updatedEntries, periodType);
+      autoSave(updatedEntries, periodType, timelineCheckedEntries, savingsGoals, budgetLimits, updatedDebts);
     }, 100);
   };
 
@@ -2765,8 +2778,10 @@ const BudgetTracker = () => {
                             : 'border-slate-300 bg-white/50 text-slate-900'
                         }`}
                       >
-                        <option value="income">Income</option>
-                        <option value="expense">Expense</option>
+                        <option value="income">Income 💼</option>
+                        <option value="expense">Expense 💸</option>
+                        <option value="savings">Savings Allocation 🐖</option>
+                        <option value="debt">Debt Payment 💳</option>
                       </select>
                     </div>
                     
@@ -2791,6 +2806,30 @@ const BudgetTracker = () => {
                         ))}
                       </select>
                     </div>
+
+                    {editingEntry.type === 'debt' && (
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Select Debt / Loan Item to Pay 💳</label>
+                        <select
+                          value={editingEntry.linkedDebtId || ''}
+                          onChange={(e) => setEditingEntry({...editingEntry, linkedDebtId: e.target.value})}
+                          className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 backdrop-blur-sm ${
+                            isDarkMode 
+                              ? 'border-gray-600 bg-gray-700/50 text-gray-200' 
+                              : 'border-slate-300 bg-white/50 text-slate-900'
+                          }`}
+                        >
+                          <option value="">Select debt item...</option>
+                          {debtItems.map((debt) => (
+                            <option key={debt.id} value={debt.id}>
+                              {debt.name} (Remaining Bal: {formatCurrency(debt.remainingBalance)})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     
                     <div>
                       <label className={`block text-sm font-medium mb-1 ${
