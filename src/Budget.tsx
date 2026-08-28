@@ -1,8 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { PlusCircle, Trash2, Calendar, DollarSign, Clock, ChevronLeft, ChevronRight, BarChart3, Edit2, Save, X, Download, Upload, Database, CalendarDays, ArrowUpDown, ArrowUp, ArrowDown, Sun, Moon, CalendarRange, CalendarCheck, Loader2, Wifi, WifiOff, Check, Calculator, Search, User, LogIn, LogOut, Settings, ShieldCheck, Cloud, CloudOff } from 'lucide-react';
+import { PlusCircle, Trash2, Calendar, DollarSign, Clock, ChevronLeft, ChevronRight, BarChart3, Edit2, Save, X, Download, Upload, Database, CalendarDays, ArrowUpDown, ArrowUp, ArrowDown, Sun, Moon, CalendarRange, CalendarCheck, Loader2, Wifi, WifiOff, Check, Calculator, Search, User, LogIn, LogOut, Settings, ShieldCheck, Cloud, CloudOff, FileSpreadsheet, Tag, Bell } from 'lucide-react';
 import { getSupabaseClient, fetchUserBudgetData, saveUserBudgetData, getSupabaseCredentials } from './lib/supabase';
 import { SupabaseAuthModal } from './components/SupabaseAuthModal';
 import { SupabaseConfigModal } from './components/SupabaseConfigModal';
+import { CategoryBreakdownChart } from './components/CategoryBreakdownChart';
+import { CustomCategoryModal } from './components/CustomCategoryModal';
+import { CURRENCIES, formatMoney, DEFAULT_CURRENCY_CODE } from './lib/currency';
+import { exportEntriesToCSV } from './lib/csvExport';
 
 // Category definitions with colors
 const INCOME_CATEGORIES = {
@@ -60,6 +64,11 @@ const BudgetTracker = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [supabaseConfigured, setSupabaseConfigured] = useState(false);
+
+  // New Features State
+  const [currencyCode, setCurrencyCode] = useState('PHP');
+  const [customCategories, setCustomCategories] = useState({ income: {}, expense: {} });
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
   // Initialize Supabase Auth Session listener
   useEffect(() => {
@@ -136,6 +145,12 @@ const BudgetTracker = () => {
           }
           if (loadedData.timelineCheckedEntries) {
             setTimelineCheckedEntries(loadedData.timelineCheckedEntries);
+          }
+          if (loadedData.currencyCode) {
+            setCurrencyCode(loadedData.currencyCode);
+          }
+          if (loadedData.customCategories) {
+            setCustomCategories(loadedData.customCategories);
           }
         }
       } catch (error) {
@@ -854,7 +869,9 @@ const BudgetTracker = () => {
     const dataToSave = {
       entries: entriesToSave,
       periodType: periodTypeToSave,
-      timelineCheckedEntries: checkedEntriesToSave
+      timelineCheckedEntries: checkedEntriesToSave,
+      currencyCode: currencyCode,
+      customCategories: customCategories
     };
     
     // Always backup to localStorage
@@ -908,7 +925,9 @@ const BudgetTracker = () => {
     const dataToSave = {
       entries: entries,
       periodType: periodType,
-      timelineCheckedEntries: timelineCheckedEntries
+      timelineCheckedEntries: timelineCheckedEntries,
+      currencyCode: currencyCode,
+      customCategories: customCategories
     };
     
     // Backup to local storage
@@ -1058,18 +1077,49 @@ const BudgetTracker = () => {
   };
 
   const formatCurrency = (amount) => {
-    return `₱${amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return formatMoney(amount, currencyCode);
+  };
+
+  const getAvailableCategories = (type) => {
+    const base = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+    const custom = customCategories[type] || {};
+    return { ...base, ...custom };
   };
 
   const getCategoryInfo = (type, category) => {
     if (!category) return { label: '❓ Uncategorized', color: 'bg-gray-400' };
-    
-    const categories = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-    return categories[category] || { label: '❓ Uncategorized', color: 'bg-gray-400' };
+    const categories = getAvailableCategories(type);
+    return categories[category] || { label: `🏷️ ${category}`, color: 'bg-purple-500' };
   };
 
-  const getAvailableCategories = (type) => {
-    return type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const getBillDueInfo = (entry) => {
+    if (entry.type !== 'expense') return null;
+    const today = new Date();
+    const currentDay = today.getDate();
+    let dueDay = null;
+
+    if (entry.billingDate) {
+      dueDay = parseInt(entry.billingDate);
+    } else if (entry.startDate) {
+      dueDay = new Date(entry.startDate).getDate();
+    }
+
+    if (!dueDay || isNaN(dueDay)) return null;
+
+    let daysUntil = dueDay - currentDay;
+    if (daysUntil < 0) {
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      daysUntil += daysInMonth;
+    }
+
+    if (daysUntil <= 7) {
+      return {
+        daysUntil,
+        isToday: daysUntil === 0,
+        text: daysUntil === 0 ? 'Due Today! ⏰' : `Due in ${daysUntil} day${daysUntil > 1 ? 's' : ''} ⏰`,
+      };
+    }
+    return null;
   };
 
   const calculateRunningTotals = () => {
@@ -1189,6 +1239,26 @@ const BudgetTracker = () => {
                 
                 {/* Supabase & User Controls */}
                 <div className="flex items-center space-x-2">
+                  {/* Currency Selector */}
+                  <select
+                    value={currencyCode}
+                    onChange={(e) => {
+                      const newCurr = e.target.value;
+                      setCurrencyCode(newCurr);
+                      autoSave(entries, periodType);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer focus:outline-none ${
+                      isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-slate-100 border-slate-200 text-slate-800'
+                    }`}
+                    title="Select Currency"
+                  >
+                    {Object.values(CURRENCIES).map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.symbol} ({c.code})
+                      </option>
+                    ))}
+                  </select>
+
                   {currentUser ? (
                     <div className="flex items-center space-x-2">
                       <div className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center border ${
@@ -1255,7 +1325,16 @@ const BudgetTracker = () => {
             </div>
           </div>
         
-          <br />
+          {/* Category Visual Analytics Chart */}
+          <CategoryBreakdownChart
+            entries={entries}
+            currencyCode={currencyCode}
+            isDarkMode={isDarkMode}
+            categoryDefinitions={{
+              income: getAvailableCategories('income'),
+              expense: getAvailableCategories('expense'),
+            }}
+          />
           
           <div className="flex justify-center space-x-3 mb-6">
             <button
@@ -1277,9 +1356,18 @@ const BudgetTracker = () => {
             <button
               onClick={exportData}
               className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all duration-200 flex items-center font-medium shadow-lg shadow-emerald-500/25"
+              title="Export JSON Backup"
             >
               <Download className="mr-2" size={18} />
-              Export Data
+              Export JSON
+            </button>
+            <button
+              onClick={() => exportEntriesToCSV(entries, currencyCode)}
+              className="px-6 py-3 bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-xl hover:from-teal-700 hover:to-teal-800 transition-all duration-200 flex items-center font-medium shadow-lg shadow-teal-500/25"
+              title="Export CSV Spreadsheet"
+            >
+              <FileSpreadsheet className="mr-2" size={18} />
+              Export CSV
             </button>
             <button
               onClick={triggerImport}
@@ -1716,6 +1804,7 @@ const BudgetTracker = () => {
                   const totalAmount = adjustedAmount * occurrences;
                   const hasAdjustment = getEntryAdjustment(entry.id, currentPeriod) !== 0;
                   const isChecked = isEntryCheckedForPeriod(entry.id, currentPeriod);
+                  const billDue = getBillDueInfo(entry);
                   
                   return (
                     <div 
@@ -1740,13 +1829,23 @@ const BudgetTracker = () => {
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center min-w-0 flex-1">
+                          <div className="flex items-center min-w-0 flex-1 flex-wrap gap-1">
                             <div className={`w-3 h-3 rounded-full mr-2 flex-shrink-0 ${getCategoryInfo(entry.type, entry.category).color}`}></div>
                             <span className={`font-medium truncate ${
                               isDarkMode ? 'text-gray-200' : 'text-slate-800'
                             }`}>
                               {entry.label}
                             </span>
+                            {billDue && (
+                              <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center shrink-0 ${
+                                billDue.isToday
+                                  ? 'bg-red-500 text-white animate-pulse'
+                                  : 'bg-amber-500/20 text-amber-600 border border-amber-500/30'
+                              }`}>
+                                <Bell size={10} className="mr-1" />
+                                {billDue.text}
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center space-x-2">
                             <span className={`font-bold ${entry.type === 'income' ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -2170,9 +2269,19 @@ const BudgetTracker = () => {
           </div>
           
           <div>
-            <label className={`block text-sm font-semibold mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-slate-700'
-            }`}>Category</label>
+            <div className="flex justify-between items-center mb-2">
+              <label className={`block text-sm font-semibold ${
+                isDarkMode ? 'text-gray-300' : 'text-slate-700'
+              }`}>Category</label>
+              <button
+                type="button"
+                onClick={() => setIsCategoryModalOpen(true)}
+                className="text-xs font-semibold text-purple-500 hover:text-purple-600 flex items-center gap-1"
+              >
+                <PlusCircle size={13} />
+                <span>+ Custom Category</span>
+              </button>
+            </div>
             <select
               value={newEntry.category}
               onChange={(e) => setNewEntry({...newEntry, category: e.target.value})}
@@ -3042,7 +3151,7 @@ const BudgetTracker = () => {
       </div>
     )}
 
-    {/* Supabase Modals */}
+    {/* Supabase & Custom Category Modals */}
     <SupabaseAuthModal
       isOpen={isAuthModalOpen}
       onClose={() => setIsAuthModalOpen(false)}
@@ -3059,6 +3168,25 @@ const BudgetTracker = () => {
         setIsConfigModalOpen(false);
         const client = getSupabaseClient();
         setSupabaseConfigured(!!client);
+      }}
+      isDarkMode={isDarkMode}
+    />
+
+    <CustomCategoryModal
+      isOpen={isCategoryModalOpen}
+      onClose={() => setIsCategoryModalOpen(false)}
+      onAddCategory={(type, key, label, color) => {
+        setCustomCategories((prev) => {
+          const updated = {
+            ...prev,
+            [type]: {
+              ...(prev[type] || {}),
+              [key]: { label, color },
+            },
+          };
+          autoSave(entries, periodType);
+          return updated;
+        });
       }}
       isDarkMode={isDarkMode}
     />
