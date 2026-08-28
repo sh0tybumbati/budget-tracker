@@ -82,6 +82,7 @@ const BudgetTracker = () => {
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(INITIAL_SAVINGS_GOALS);
   const [budgetLimits, setBudgetLimits] = useState<CategoryLimit[]>(DEFAULT_BUDGET_LIMITS);
   const [debtItems, setDebtItems] = useState<DebtItem[]>(INITIAL_DEBTS);
+  const [filterType, setFilterType] = useState('all');
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
   // Initialize Supabase Auth Session listener
@@ -596,7 +597,14 @@ const BudgetTracker = () => {
         entry.label.toLowerCase().includes(searchLower) ||
         (entry.category && getCategoryInfo(entry.type, entry.category).label.toLowerCase().includes(searchLower));
       
-      return matchesSearch;
+      if (!matchesSearch) return false;
+
+      if (filterType === 'all') return true;
+      if (filterType === 'duesoon') {
+        const bill = getBillDueInfo(entry);
+        return !!bill;
+      }
+      return entry.type === filterType;
     });
 
     // Sort entries
@@ -1770,6 +1778,32 @@ const BudgetTracker = () => {
                 />
               </div>
               
+              {/* Quick Filter Chips */}
+              <div className="flex flex-wrap gap-2 justify-center my-3">
+                {[
+                  { key: 'all', label: '⚡ All Entries' },
+                  { key: 'income', label: '💼 Income' },
+                  { key: 'expense', label: '💸 Expenses' },
+                  { key: 'savings', label: '🐖 Savings' },
+                  { key: 'debt', label: '💳 Debt Payments' },
+                  { key: 'duesoon', label: '⏰ Due Soon' }
+                ].map((chip) => (
+                  <button
+                    key={chip.key}
+                    onClick={() => setFilterType(chip.key)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      filterType === chip.key
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md scale-[1.03]'
+                        : isDarkMode
+                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+
               {/* Sort Options */}
               <div className="flex flex-wrap gap-2 justify-center">
                 <span className={`text-sm font-medium ${

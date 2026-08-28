@@ -109,8 +109,27 @@ export const SavingsTracker: React.FC<SavingsTrackerProps> = ({
     }
   };
 
+  const achievedGoals = goalsList.filter((g) => (parseFloat(g.currentAmount as any) || 0) >= (parseFloat(g.targetAmount as any) || 1));
+
   return (
     <div className="space-y-6">
+      {/* Celebration Banner if any goals achieved */}
+      {achievedGoals.length > 0 && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black shadow-xl shadow-amber-500/20 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center space-x-2">
+            <span className="text-xl">🎉</span>
+            <span className="text-sm">Goal Achieved! You reached 100% completion on {achievedGoals.length} goal{achievedGoals.length > 1 ? 's' : ''}!</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {achievedGoals.map((g) => (
+              <span key={g.id} className="text-[11px] bg-slate-950/15 px-2.5 py-1 rounded-lg font-black">
+                {g.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Total Cumulative Savings Header Card */}
       <div
         className={`p-6 rounded-3xl border shadow-xl transition-all ${

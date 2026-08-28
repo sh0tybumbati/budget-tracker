@@ -5,6 +5,7 @@ import { formatMoney } from '../lib/currency';
 
 interface DebtTrackerProps {
   debts: DebtItem[];
+  totalSavings?: number;
   onUpdateDebts: (updatedDebts: DebtItem[]) => void;
   currencyCode: string;
   isDarkMode: boolean;
@@ -12,6 +13,7 @@ interface DebtTrackerProps {
 
 export const DebtTracker: React.FC<DebtTrackerProps> = ({
   debts = INITIAL_DEBTS,
+  totalSavings = 0,
   onUpdateDebts,
   currencyCode,
   isDarkMode,
@@ -118,7 +120,13 @@ export const DebtTracker: React.FC<DebtTrackerProps> = ({
             : 'bg-gradient-to-r from-red-50 to-amber-50 border-red-200'
         }`}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wider opacity-75">Net Worth (Assets - Debt)</span>
+            <div className={`text-2xl font-black mt-1 ${totalSavings - totalRemainingDebt >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+              {formatMoney(totalSavings - totalRemainingDebt, currencyCode)}
+            </div>
+          </div>
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider opacity-75">Total Remaining Debt</span>
             <div className="text-2xl font-black text-red-500 mt-1">{formatMoney(totalRemainingDebt, currencyCode)}</div>
@@ -128,7 +136,7 @@ export const DebtTracker: React.FC<DebtTrackerProps> = ({
             <div className="text-2xl font-black text-emerald-500 mt-1">{formatMoney(totalPaidOff, currencyCode)}</div>
           </div>
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wider opacity-75">Overall Payoff Progress</span>
+            <span className="text-xs font-semibold uppercase tracking-wider opacity-75">Payoff Progress</span>
             <div className="text-2xl font-black text-blue-500 mt-1">{overallPayoffPct.toFixed(1)}%</div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, AlertCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, AlertCircle, X, Bell } from 'lucide-react';
 import { formatMoney } from '../lib/currency';
 
 interface FinancialCalendarProps {
@@ -14,6 +14,7 @@ export const FinancialCalendar: React.FC<FinancialCalendarProps> = ({
   isDarkMode,
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -29,8 +30,9 @@ export const FinancialCalendar: React.FC<FinancialCalendarProps> = ({
   // Map entries by day
   const getEntriesForDay = (day: number) => {
     return entries.filter((e) => {
-      if (!e.dueDate && !e.date) return false;
-      const d = new Date(e.dueDate || e.date);
+      if (!e.dueDate && !e.date && !e.billingDate && !e.startDate) return false;
+      const dateStr = e.dueDate || e.billingDate || e.startDate || e.date;
+      const d = new Date(dateStr);
       return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
     });
   };
@@ -42,6 +44,8 @@ export const FinancialCalendar: React.FC<FinancialCalendarProps> = ({
   for (let d = 1; d <= daysInMonth; d++) {
     daysGrid.push(d);
   }
+
+  const selectedDayEntries = selectedDay ? getEntriesForDay(selectedDay) : [];
 
   return (
     <div
@@ -56,7 +60,7 @@ export const FinancialCalendar: React.FC<FinancialCalendarProps> = ({
           </div>
           <div>
             <h2 className="text-xl font-bold">Interactive Financial Calendar</h2>
-            <p className="text-xs opacity-75">View paydays, upcoming bill due dates, and automated savings events</p>
+            <p className="text-xs opacity-75">Click any date to inspect scheduled paydays, due bills, and savings events</p>
           </div>
         </div>
 
@@ -108,14 +112,15 @@ export const FinancialCalendar: React.FC<FinancialCalendarProps> = ({
           return (
             <div
               key={day}
-              className={`h-24 p-2 rounded-2xl border transition-all flex flex-col justify-between overflow-hidden ${
+              onClick={() => setSelectedDay(day)}
+              className={`h-24 p-2 rounded-2xl border transition-all flex flex-col justify-between overflow-hidden cursor-pointer hover:scale-[1.02] hover:shadow-lg ${
                 isToday
                   ? isDarkMode
-                    ? 'border-indigo-500 bg-indigo-900/20'
-                    : 'border-indigo-500 bg-indigo-50/50'
+                    ? 'border-indigo-500 bg-indigo-900/30 shadow-indigo-500/20'
+                    : 'border-indigo-500 bg-indigo-50/70 shadow-indigo-500/20'
                   : isDarkMode
-                  ? 'bg-gray-700/30 border-gray-700'
-                  : 'bg-slate-50/60 border-slate-200'
+                  ? 'bg-gray-700/30 border-gray-700 hover:border-gray-500'
+                  : 'bg-slate-50/60 border-slate-200 hover:border-slate-400'
               }`}
             >
               <div className="flex justify-between items-center">
@@ -134,10 +139,12 @@ export const FinancialCalendar: React.FC<FinancialCalendarProps> = ({
                         ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
                         : e.type === 'savings'
                         ? 'bg-purple-500/10 text-purple-600 border border-purple-500/20'
+                        : e.type === 'debt'
+                        ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20'
                         : 'bg-red-500/10 text-red-600 border border-red-500/20'
                     }`}
                   >
-                    <span className="truncate max-w-[50px]">{e.label}</span>
+                    <span className="truncate max-w-[45px]">{e.label}</span>
                     <span>{formatMoney(e.amount, currencyCode)}</span>
                   </div>
                 ))}
@@ -146,6 +153,67 @@ export const FinancialCalendar: React.FC<FinancialCalendarProps> = ({
           );
         })}
       </div>
+
+      {/* Selected Day Popover Drawer */}
+      {selectedDay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div
+            className={`w-full max-w-md p-6 rounded-3xl shadow-2xl border ${
+              isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-slate-200 text-slate-800'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200/20">
+              <div className="flex items-center space-x-2">
+                <CalendarIcon className="text-indigo-500" size={22} />
+                <h3 className="text-lg font-bold">
+                  {new Date(year, month, selectedDay).toLocaleDateString('default', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedDay(null)}
+                className="p-1.5 rounded-xl hover:bg-gray-700/50 cursor-pointer transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {selectedDayEntries.length === 0 ? (
+              <div className="py-8 text-center opacity-75">
+                <Clock className="mx-auto mb-2 opacity-50" size={32} />
+                <p className="text-sm font-semibold">No scheduled events or bills for this date.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                {selectedDayEntries.map((e) => (
+                  <div
+                    key={e.id}
+                    className={`p-3 rounded-2xl border flex items-center justify-between ${
+                      e.type === 'income'
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600'
+                        : e.type === 'savings'
+                        ? 'bg-purple-500/10 border-purple-500/30 text-purple-600'
+                        : e.type === 'debt'
+                        ? 'bg-rose-500/10 border-rose-500/30 text-rose-600'
+                        : 'bg-red-500/10 border-red-500/30 text-red-600'
+                    }`}
+                  >
+                    <div>
+                      <h4 className="font-bold text-sm">{e.label}</h4>
+                      <span className="text-[11px] opacity-75 uppercase font-semibold">{e.type}</span>
+                    </div>
+                    <span className="text-base font-black">{formatMoney(e.amount, currencyCode)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
