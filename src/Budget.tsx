@@ -819,16 +819,30 @@ const BudgetTracker = () => {
 
     const updatedEntries = [...entries, entry];
     setEntries(updatedEntries);
+
+    let updatedDebts = debtItems;
+    if (newEntry.linkedDebtId) {
+      updatedDebts = debtItems.map((d) => {
+        if (d.id === newEntry.linkedDebtId) {
+          const newRem = Math.max(0, (parseFloat(d.remainingBalance as any) || 0) - parseFloat(newEntry.amount));
+          return { ...d, remainingBalance: newRem };
+        }
+        return d;
+      });
+      setDebtItems(updatedDebts);
+    }
     
     // Auto-save after adding entry
     setTimeout(() => {
-      autoSave(updatedEntries, periodType);
+      autoSave(updatedEntries, periodType, timelineCheckedEntries, savingsGoals, budgetLimits, updatedDebts);
     }, 100);
     
     setNewEntry({
       label: '',
       amount: '',
-      type: 'income',
+      type: 'expense',
+      category: '',
+      linkedDebtId: '',
       recurrenceType: 'biweekly',
       startDate: '',
       endDate: '',
@@ -1844,6 +1858,12 @@ const BudgetTracker = () => {
                                 {billDue.text}
                               </span>
                             )}
+                            {entry.linkedDebtId && (
+                              <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20 inline-flex items-center shrink-0">
+                                <CreditCard size={10} className="mr-1" />
+                                Linked Debt Payment
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center space-x-2">
                             <span className={`font-bold ${
@@ -2302,6 +2322,30 @@ const BudgetTracker = () => {
               {Object.entries(getAvailableCategories(newEntry.type)).map(([key, category]) => (
                 <option key={key} value={key}>
                   {category.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className={`block text-sm font-semibold mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-slate-700'
+            }`}>
+              Link to Debt / Loan (Optional) 💳
+            </label>
+            <select
+              value={newEntry.linkedDebtId || ''}
+              onChange={(e) => setNewEntry({...newEntry, linkedDebtId: e.target.value})}
+              className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 backdrop-blur-sm ${
+                isDarkMode 
+                  ? 'border-gray-600 bg-gray-700/50 text-gray-200' 
+                  : 'border-slate-300 bg-white/50 text-slate-900'
+              }`}
+            >
+              <option value="">None (Regular Budget Entry)</option>
+              {debtItems.map((debt) => (
+                <option key={debt.id} value={debt.id}>
+                  {debt.name} (Remaining Bal: {formatCurrency(debt.remainingBalance)})
                 </option>
               ))}
             </select>
