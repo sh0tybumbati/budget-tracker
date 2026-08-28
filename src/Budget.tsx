@@ -2166,92 +2166,7 @@ const BudgetTracker = () => {
           </div>
         )}
 
-        {/* TAB 3: SAVINGS GOALS */}
-        {activeTab === 'savings' && (
-          <div className="space-y-6 animate-fade-in">
-            <SavingsTracker
-              savingsGoals={savingsGoals}
-              onUpdateGoals={(updated) => {
-                setSavingsGoals(updated);
-                autoSave(entries, periodType, timelineCheckedEntries, updated);
-              }}
-              currencyCode={currencyCode}
-              isDarkMode={isDarkMode}
-            />
-          </div>
-        )}
 
-        {/* TAB 4: DATA & SETTINGS */}
-        {activeTab === 'settings' && (
-          <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
-            <div className={`p-6 rounded-2xl border shadow-lg ${
-              isDarkMode ? 'bg-gray-800/80 border-gray-700' : 'bg-white border-slate-200'
-            }`}>
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Database className="text-blue-500" size={22} />
-                <span>Backup & Data Management</span>
-              </h2>
-
-              <div className="flex flex-wrap gap-3 mb-6">
-                <button
-                  onClick={saveData}
-                  disabled={isSaving}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold text-xs rounded-xl shadow hover:from-blue-700 flex items-center space-x-2"
-                >
-                  {isSaving ? <Loader2 className="animate-spin" size={16} /> : <Database size={16} />}
-                  <span>{isSaving ? 'Saving...' : 'Save to Cloud/Local'}</span>
-                </button>
-
-                <button
-                  onClick={exportData}
-                  className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-bold text-xs rounded-xl shadow hover:from-emerald-700 flex items-center space-x-2"
-                >
-                  <Download size={16} />
-                  <span>Export JSON Backup</span>
-                </button>
-
-                <button
-                  onClick={() => exportEntriesToCSV(entries, currencyCode)}
-                  className="px-6 py-3 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold text-xs rounded-xl shadow hover:from-teal-700 flex items-center space-x-2"
-                >
-                  <FileSpreadsheet size={16} />
-                  <span>Export CSV Spreadsheet</span>
-                </button>
-
-                <button
-                  onClick={triggerImport}
-                  disabled={isImporting}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold text-xs rounded-xl shadow hover:from-purple-700 flex items-center space-x-2"
-                >
-                  {isImporting ? <Loader2 className="animate-spin" size={16} /> : <Upload size={16} />}
-                  <span>Import JSON Backup</span>
-                </button>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json"
-                  onChange={importData}
-                  className="hidden"
-                />
-              </div>
-
-              <div className="pt-4 border-t border-gray-200/20 flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-sm font-bold">Custom Categories</h3>
-                  <p className="text-xs opacity-70">Add personalized income or expense categories</p>
-                </div>
-                <button
-                  onClick={() => setIsCategoryModalOpen(true)}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow flex items-center space-x-1.5"
-                >
-                  <Tag size={16} />
-                  <span>Add Custom Category</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className={`p-8 rounded-2xl shadow-lg border mb-8 transition-colors duration-300 ${
           isDarkMode 
@@ -3113,6 +3028,93 @@ const BudgetTracker = () => {
       </div>
     </div>
   )}
+
+        {/* TAB 3: SAVINGS GOALS */}
+        {activeTab === 'savings' && (
+          <div className="space-y-6 animate-fade-in">
+            <SavingsTracker
+              savingsGoals={savingsGoals}
+              onUpdateGoals={(updated) => {
+                setSavingsGoals(updated);
+                autoSave(entries, periodType, timelineCheckedEntries, updated);
+              }}
+              currencyCode={currencyCode}
+              isDarkMode={isDarkMode}
+            />
+          </div>
+        )}
+
+        {/* TAB 4: DATA & SETTINGS */}
+        {activeTab === 'settings' && (
+          <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+            <div className={`p-6 rounded-2xl border shadow-lg ${
+              isDarkMode ? 'bg-gray-800/80 border-gray-700' : 'bg-white border-slate-200'
+            }`}>
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <Database className="text-blue-500" size={22} />
+                <span>Backup & Data Management</span>
+              </h2>
+
+              <div className="flex flex-wrap gap-3 mb-6">
+                <button
+                  onClick={saveData}
+                  disabled={isSaving}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold text-xs rounded-xl shadow hover:from-blue-700 flex items-center space-x-2 cursor-pointer"
+                >
+                  {isSaving ? <Loader2 className="animate-spin" size={16} /> : <Database size={16} />}
+                  <span>{isSaving ? 'Saving...' : 'Save to Cloud/Local'}</span>
+                </button>
+
+                <button
+                  onClick={exportData}
+                  className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-bold text-xs rounded-xl shadow hover:from-emerald-700 flex items-center space-x-2 cursor-pointer"
+                >
+                  <Download size={16} />
+                  <span>Export JSON Backup</span>
+                </button>
+
+                <button
+                  onClick={() => exportEntriesToCSV(entries, currencyCode)}
+                  className="px-6 py-3 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold text-xs rounded-xl shadow hover:from-teal-700 flex items-center space-x-2 cursor-pointer"
+                >
+                  <FileSpreadsheet size={16} />
+                  <span>Export CSV Spreadsheet</span>
+                </button>
+
+                <button
+                  onClick={triggerImport}
+                  disabled={isImporting}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold text-xs rounded-xl shadow hover:from-purple-700 flex items-center space-x-2 cursor-pointer"
+                >
+                  {isImporting ? <Loader2 className="animate-spin" size={16} /> : <Upload size={16} />}
+                  <span>Import JSON Backup</span>
+                </button>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={importData}
+                  className="hidden"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-gray-200/20 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-bold">Custom Categories</h3>
+                  <p className="text-xs opacity-70">Add personalized income or expense categories</p>
+                </div>
+                <button
+                  onClick={() => setIsCategoryModalOpen(true)}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <Tag size={16} />
+                  <span>Add Custom Category</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
     {/* Adjustment Modal */}
     {adjustmentModal && (
